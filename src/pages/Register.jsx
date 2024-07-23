@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../api';
+import logo from '../assets/smartGrowerLogo.png';
+import './Login.css'; // Import the CSS file for animations
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -27,7 +29,7 @@ const Register = () => {
         onSubmit={submitHandler}
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
       >
-        <h2 className="text-2xl font-bold mb-4 text-center">Register</h2>
+        <img src={logo} alt="Logo" className="mb-4 animate-logo" />
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
         <label className="w-full">
           <p className="mb-1 text-sm text-gray-700">
@@ -70,7 +72,7 @@ const Register = () => {
         </label>
         <button
           type="submit"
-          className="mt-6 w-full bg-yellow-500 text-white py-2 rounded-lg"
+          className="mt-6 w-full bg-gradient-to-r from-gray-400 to-gray-800 text-white py-2 rounded-lg text-lg font-semibold"
         >
           Register
         </button>

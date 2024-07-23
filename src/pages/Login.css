@@ -1,0 +1,32 @@
+@keyframes logoAnimation {
+    0% {
+      transform: scale(1);
+      filter: brightness(1);
+      border: 2px solid transparent;
+    }
+    25% {
+      transform: scale(1.1);
+      filter: brightness(1.2);
+      border: 2px solid #ddd;
+    }
+    50% {
+      transform: scale(1);
+      filter: brightness(1);
+      border: 2px solid transparent;
+    }
+    75% {
+      transform: scale(1.1);
+      filter: brightness(1.2);
+      border: 2px solid #ddd;
+    }
+    100% {
+      transform: scale(1);
+      filter: brightness(1);
+      border: 2px solid transparent;
+    }
+  }
+  
+  .animate-logo {
+    animation: logoAnimation 5s infinite;
+  }
+  

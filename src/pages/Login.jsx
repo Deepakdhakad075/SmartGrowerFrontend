@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../api'; // Make sure to import your login function
-import logo from '../assets/smartGrowerLogo.png'
+import logo from '../assets/smartGrowerLogo.png';
+import './Login.css'; // Import the CSS file for animations
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,14 +25,17 @@ const Login = () => {
     }
   };
 
+  const navigateToRegister = () => {
+    navigate('/register');
+  };
+
   return (
     <div className="flex flex-col items-center justify-center mt-28 bg-gray-100">
       <form
         onSubmit={submitHandler}
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
       >
-        <img src={logo} alt="" />
-        {/* <h2 className="text-2xl font-bold mb-4 text-center">Labour Management</h2> */}
+        <img src={logo} alt="Logo" className="mb-4 animate-logo" />
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
         <label className="w-full">
           <p className="mb-1 text-sm text-gray-700">
@@ -70,9 +75,15 @@ const Login = () => {
         </label>
         <button
           type="submit"
-          className="mt-6 w-full bg-gradient-to-r from-gray-500 to-gray-800 text-white py-2 rounded-lg"
+          className="mt-6 w-full bg-gradient-to-r from-gray-400 to-gray-800 text-white py-2 rounded-lg text-lg font-semibold"
         >
           Sign In
+        </button>
+        <button
+          onClick={navigateToRegister}
+          className="mt-4 w-full bg-gradient-to-r from-gray-800 to-gray-400 text-white py-2 rounded-lg text-lg font-semibold"
+        >
+          Register
         </button>
       </form>
     </div>
