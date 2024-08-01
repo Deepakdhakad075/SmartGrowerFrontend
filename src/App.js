@@ -15,6 +15,8 @@ import ReceiptDetails from './components/ReceiptDetails';
 import ReceiptsList from './components/ReceiptsList';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+// import AnimatedDots from './components/Loader';
+import Profile from './pages/Profile';
 
 
 function App() {
@@ -30,9 +32,10 @@ function App() {
             <Route path="/home" element={<Dashboard/>} />
             <Route path="/" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<Profile/>} />
             <Route path="/addreport/:id" element={<AddDailyReport token={token} />} />
             <Route path="/labour/:id" element={<LabourDetails token={token} />} />
-            <Route path="/recipt-generate" element={< GenerateReceipt token={token} />} />
+            <Route path="/recipt-generate/:id" element={< GenerateReceipt token={token} />} />
             <Route path="/receipts" element={< ReceiptsList token={token} />} />
             <Route path="/receipt/:labourId/:receiptId" element={< ReceiptDetails token={token} />} />
           </Routes>

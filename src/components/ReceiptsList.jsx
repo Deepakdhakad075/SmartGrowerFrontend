@@ -10,7 +10,8 @@ const ReceiptsList = ({ token }) => {
     const fetchReceipts = async () => {
       try {
         const labours = await getLabours(token);
-        const allReceipts = labours.flatMap(labour => labour.receipts.map(receipt => ({
+        console.log(labours,"dataaaaaaaaa");
+        const allReceipts = labours.labours.flatMap(labour => labour.receipts.map(receipt => ({
           ...receipt,
           labourId: labour._id
         })));

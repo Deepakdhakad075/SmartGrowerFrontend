@@ -1,10 +1,15 @@
-import { AiOutlineEdit } from "react-icons/ai"; 
-import { MdDeleteOutline } from "react-icons/md"; 
+import { FcPrint } from "react-icons/fc"; 
 import React, { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { getLabour,deleteDailyReport,editDailyReport } from '../api';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getLabour, deleteDailyReport, editDailyReport } from '../api';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import axios from 'axios';
+import DepositForm from './DepositForm'; // Import DepositForm
+import { FaEdit } from 'react-icons/fa';
+import { MdDeleteOutline } from 'react-icons/md';
+import { BsThreeDotsVertical } from 'react-icons/bs'; // Import three-dot icon
+import EditReportModal from './EditReportModal'; 
 
 const LabourDetails = ({ token }) => {
   const { id } = useParams();
@@ -13,50 +18,70 @@ const LabourDetails = ({ token }) => {
   const [totalHours, setTotalHours] = useState(0);
   const [totalCharges, setTotalCharges] = useState(0);
   const [totalLabour, setTotalLabour] = useState(0);
+  const [totalDeposits, setTotalDeposits] = useState(0); // Total deposits
+  const [totalDue, setTotalDue] = useState(0); // Total due amount
   const [showEditModal, setShowEditModal] = useState(false); // State to control edit modal visibility
-  const [editData, setEditData] = useState(null); 
-
+  const [editData, setEditData] = useState(null);
+  const [showDepositEditModal, setShowDepositEditModal] = useState(false);
+  const [showDepositDetails, setShowDepositDetails] = useState(false); // State to control deposit details visibility
+  const [totalPaid, setTotalPaid] = useState('');
+  const [date, setDate] = useState('');
+  const [showActionsModal, setShowActionsModal] = useState(false); // State to control actions modal visibility
   const navigate = useNavigate();
-  useEffect(() => {
-    const fetchLabour = async () => {
-      try {
-        const data = await getLabour(id, token);
-        setLabour(data);
-        calculateTotals(data.dailyReports);
-      } catch (error) {
-        console.error('Failed to fetch labour details:', error);
-      }
-    };
 
+
+
+  useEffect(() => {
     fetchLabour();
-  }, [id, token]);
+  }, [id, token,showDepositEditModal]);
+
+  const fetchLabour = async () => {
+    try {
+      const data = await getLabour(id, token);
+      setLabour(data.data.labour);
+      setTotalDeposits(data.data.totalDepositAmount);
+      setTotalDue(data.data.totalDueAmount);
+      setTotalCharges(data.totalDailyCharges);
+
+      if (data.data.labour && data.data.labour.dailyReports) {
+        calculateTotals(data.data.labour.dailyReports);
+      }
+     
+    } catch (error) {
+      console.error('Failed to fetch labour details:', error);
+    }
+  };
 
   const calculateTotals = (dailyReports) => {
+    if (!dailyReports || dailyReports.length === 0) return;
+
     let days = dailyReports.length;
     let hours = dailyReports.reduce((acc, report) => acc + report.workHours, 0);
     let charges = dailyReports.reduce((acc, report) => acc + report.dailyCharge, 0);
     let totalLabours = dailyReports.reduce((acc, report) => acc + (report.numberofLabours || 0), 0);
-    
+
     setTotalDays(days);
     setTotalHours(hours);
     setTotalCharges(charges);
     setTotalLabour(totalLabours);
   };
 
+ 
+
   const printPDF = () => {
     if (!labour) return;
-  
+
     const currentDate = new Date().toLocaleDateString();
     const currentTime = new Date().toLocaleTimeString();
     const doc = new jsPDF();
-  
+
     // Main heading with current date and time
     doc.text(`${labour.name}'s Daily Reports`, 105, 15, { align: 'center' });
     doc.text(`Printed on: ${currentDate} ${currentTime}`, 105, 22, { align: 'center' });
-  
+
     // Table headers
     const headers = [['Date', 'Number of Labours', 'Rate', 'Work Hours', 'Description', 'Daily Charge']];
-  
+
     // Table rows
     const data = labour.dailyReports.map(report => [
       new Date(report.date).toLocaleDateString(),
@@ -66,7 +91,7 @@ const LabourDetails = ({ token }) => {
       report.description,
       `${report.dailyCharge} Rs`
     ]);
-  
+
     // Generate table
     doc.autoTable({
       head: headers,
@@ -74,21 +99,19 @@ const LabourDetails = ({ token }) => {
       foot: [['Total days ' + totalDays, totalLabour, '', totalHours, '', `${totalCharges} Rs`]],
       startY: 30,
     });
-  
+
     // Download the PDF
     doc.save(`${labour.name}_Labour_Details.pdf`);
   };
 
-  const generateRecipt=()=>{
-    navigate('/recipt-generate')
-  }
-   
+  const generateReceipt = () => {
+    navigate(`/recipt-generate/${id}`);
+  };
+
   const deleteReport = async (labourId, reportId) => {
     try {
       await deleteDailyReport(labourId, reportId, token);
-      const updatedLabour = await getLabour(id, token);
-      setLabour(updatedLabour);
-      calculateTotals(updatedLabour.dailyReports);
+      fetchLabour(); // Refetch the labour details after deleting a report
     } catch (error) {
       console.error('Failed to delete daily report:', error);
     }
@@ -97,9 +120,7 @@ const LabourDetails = ({ token }) => {
   const editReport = async (reportId, updatedData) => {
     try {
       await editDailyReport(labour._id, reportId, updatedData, token);
-      const updatedLabour = await getLabour(id, token);
-      setLabour(updatedLabour);
-      calculateTotals(updatedLabour.dailyReports);
+      fetchLabour(); // Refetch the labour details after editing a report
       setShowEditModal(false); // Close the edit modal after successful edit
     } catch (error) {
       console.error('Failed to edit daily report:', error);
@@ -115,187 +136,242 @@ const LabourDetails = ({ token }) => {
     editReport(editData._id, updatedData);
   };
 
-const handleEditCancel= ()=>{
+  const handleEditCancel = () => {
     setShowEditModal(false);
-}
+  };
+
+  const handleDeposit = () => {
+    setShowDepositEditModal(!showDepositEditModal);
+  };
+
+  const toggleDepositDetails = () => {
+    setShowDepositDetails(!showDepositDetails);
+  };
+
+  const handleShowActionsModal = () => {
+    setShowActionsModal(true);
+  };
+
+  const handleCloseActionsModal = () => {
+    setShowActionsModal(false);
+  };
+
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 relative">
       {labour && (
         <>
+         <div className="hidden md:block relative  ">
+              <button onClick={handleShowActionsModal} className="absolute text-gray-600 top-3 right-2">
+               
+                <FcPrint onClick={printPDF} size={24} />
+              </button>
+          </div>
+          <div className='flex items-center justify-center '>
+         
           <div className="md:text-3xl sm:text-xl text-xl text-[#3E3236] font-bold my-2 text-center">{labour.name}'s Daily Reports</div>
+          <div className="md:hidden relative ml-24">
+              <button onClick={handleShowActionsModal} className="text-gray-600">
+                <BsThreeDotsVertical size={24} />
+              </button>
+          </div>
+        
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-md">
               <thead>
                 <tr className="bg-[#fde6c0] text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-3 px-6 text-left border border-gray-400">Date</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">Number of Labours</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">Rate</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">Work Hours</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">Description</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">total Charge</th>
-                  <th className="py-3 px-6 text-left border border-gray-400">Actions</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Date</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Number of Labours</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Rate</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Work Hours</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Description</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Total Charge</th>
+                  <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-gray-600 text-sm font-light">
                 {labour.dailyReports.map((report) => (
                   <tr key={report._id} className="border-b border-gray-200 hover:bg-gray-100">
-                    <td className="py-3 px-6 text-left whitespace-nowrap border border-gray-300">
+                    <td className="py-3 px-2 md:px-6 text-left whitespace-nowrap border border-gray-300">
                       {new Date(report.date).toLocaleDateString()}
                     </td>
-                    <td className="py-3 px-6 text-left border border-gray-300">{report.numberofLabours}</td>
-                    <td className="py-3 px-6 text-left border border-gray-300">{report.rate}</td>
-                    <td className="py-3 px-6 text-left border border-gray-300">{report.workHours}</td>
-                    <td className="py-3 px-6 text-left border border-gray-300">{report.description}</td>
-                    <td className="py-3 px-6 text-left border border-gray-300">{report.dailyCharge} Rs</td>
-
-                    <td className="py-3 px-6 text-left flex border border-gray-300">
-                      <button
-                        className="text-red-500  px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 focus:outline-none focus:ring-1 focus:ring-red-500 mr-4"
-                        onClick={() => deleteReport(labour._id, report._id)}
-                      >
-                        <MdDeleteOutline size={20}/>
-                      </button>
-                      <button
-                        className="text-green-500  px-4 py-2 rounded-lg shadow-sm hover:bg-green-600 focus:outline-none focus:ring-1 focus:ring-green-500"
-                        onClick={() => handleEdit(report._id, report)} // Pass initial data to edit function
-                      >
-                        <AiOutlineEdit size={20}/>
-                      </button>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{report.numberofLabours}</td>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{report.rate}</td>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{report.workHours}</td>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{report.description}</td>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{report.dailyCharge} Rs</td>
+                    <td className="py-3 px-2 md:px-6 text-left border border-gray-300">
+                      <div className="flex items-center space-x-2">
+                        <button onClick={() => handleEdit(report._id, report)} className="text-blue-500 hover:text-blue-700">
+                          <FaEdit />
+                        </button>
+                        <button onClick={() => deleteReport(labour._id, report._id)} className="text-red-500 hover:text-red-700">
+                          <MdDeleteOutline />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-[#fde6c0] text-gray-600 uppercase text-sm leading-normal">
-                  <td className="py-3 px-6 text-left font-bold">Total {totalDays} Days</td>
-                  <td className="py-3 px-6 text-left font-bold">{totalLabour}</td>
-                  <td className="py-3 px-6 text-left font-bold"></td>
-                  <td className="py-3 px-6 text-left font-bold">{totalHours} Hours</td>
-                  <td className="py-3 px-6 text-left font-bold"></td>
-                  <td className="py-3 px-6 text-left font-bold">{totalCharges} Rs</td>
-                  <td className="py-3 px-6 text-left font-bold"></td>
+                <tr className="border-b border-gray-200 font-bold bg-gray-50">
+                  <td className="py-3 px-2 md:px-6 text-left">Total days {totalDays}</td>
+                  <td className="py-3 px-2 md:px-6 text-left">{totalLabour}</td>
+                  <td></td>
+                  <td className="py-3 px-2 md:px-6 text-left">{totalHours}</td>
+                  <td></td>
+                  <td className="py-3 px-2 md:px-6 text-left">{totalCharges} Rs</td>
+                  <td></td>
                 </tr>
-              </tfoot>
+              </tbody>
             </table>
-            <div className="text-center mt-4">
-              <button
-                className="bg-gray-700 text-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mr-4"
+          </div>
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4">
+            <div className="hidden md:block space-x-2 mb-2 md:mb-0 ">
+              {/* <button
+                className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded"
                 onClick={printPDF}
               >
-                Download PDF
+                Print PDF
+              </button> */}
+      <div className="flex flex-col gap-2 px-2">
+      <button
+                className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded"
+                onClick={generateReceipt}
+              >
+                Generate Receipt
               </button>
               <button
-                className="bg-[#3E3236] text-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mr-4"
-                onClick={generateRecipt}
+                className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded"
+                onClick={handleDeposit}
               >
-               Generate recipt
+                Deposit
               </button>
+              <button
+                className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded"
+                onClick={toggleDepositDetails}
+              >
+                {showDepositDetails ? 'Hide Deposit Details' : 'Show Deposit Details'}
+              </button>
+      </div>
             </div>
+           
+            <div className="w-full mt-4">
+  <table className="min-w-full bg-white shadow-md rounded-lg">
+    <thead>
+      <tr>
+        <th className="py-2 px-4 bg-gray-200 border-b text-left text-sm font-bold text-gray-700">Description</th>
+        <th className="py-2 px-4 bg-gray-200 border-b text-left text-sm font-bold text-gray-700">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">Total Charges</td>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">{totalCharges} Rs</td>
+      </tr>
+      <tr>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">Total Deposits</td>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">{totalDeposits} Rs</td>
+      </tr>
+      <tr>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">Total Due</td>
+        <td className="py-2 px-4 border-b text-sm font-medium text-gray-600">{totalDue} Rs</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
           </div>
+          {showActionsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded shadow-lg w-11/12 sm:w-96">
+                <button
+                  className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded mb-2 w-full"
+                  onClick={() => {
+                    printPDF();
+                    handleCloseActionsModal();
+                  }}
+                >
+                  Print PDF
+                </button>
+                <button
+                  className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded mb-2 w-full"
+                  onClick={() => {
+                    generateReceipt();
+                    handleCloseActionsModal();
+                  }}
+                >
+                  Generate Receipt
+                </button>
+                <button
+                  className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded mb-2 w-full"
+                  onClick={() => {
+                    handleDeposit();
+                    handleCloseActionsModal();
+                  }}
+                >
+                  Deposit
+                </button>
+                <button
+                  className="bg-[#3E3236] hover:bg-[#685052] text-white py-2 px-4 rounded mb-2 w-full"
+                  onClick={() => {
+                    toggleDepositDetails();
+                    handleCloseActionsModal();
+                  }}
+                >
+                  {showDepositDetails ? 'Hide Deposit Details' : 'Show Deposit Details'}
+                </button>
+                <button
+                  className="text-gray-600 mt-2 w-full"
+                  onClick={handleCloseActionsModal}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {showDepositEditModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+              <div className="bg-white p-6 rounded shadow-lg w-11/12 sm:w-96">
+                <DepositForm
+                  labourId={labour._id}
+                  token={token}
+                  onClose={() => setShowDepositEditModal(false)}
+                  onDepositSuccess={fetchLabour}
+                />
+              </div>
+            </div>
+          )}
+          {showEditModal && (
+            <EditReportModal
+              report={editData}
+              onSubmit={handleEditSubmit}
+              onCancel={handleEditCancel}
+            />
+          )}
+          {showDepositDetails && (
+            <div className="overflow-x-auto mt-4">
+              <h3 className="text-xl font-bold mb-2 text-center">Deposit Details</h3>
+              <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-md">
+                <thead>
+                  <tr className="bg-[#fde6c0] text-gray-600 uppercase text-sm leading-normal">
+                    <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Date</th>
+                    <th className="py-3 px-2 md:px-6 text-left border border-gray-400">Total Paid</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-600 text-sm font-light">
+                  {labour.paid.map((deposit) => (
+                    <tr key={deposit._id} className="border-b border-gray-200 hover:bg-gray-100">
+                      <td className="py-3 px-2 md:px-6 text-left whitespace-nowrap border border-gray-300">
+                        {new Date(deposit.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-2 md:px-6 text-left border border-gray-300">{deposit.totalPaid} Rs</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
-       {showEditModal && editData && (
-  <div className="fixed inset-0 z-10 overflow-y-auto">
-    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-        <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-      </div>
-
-      <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-      <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-          <div className="sm:flex sm:items-start">
-            <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Edit Daily Report</h3>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleEditSubmit(editData);
-              }}>
-                <div className="mt-2">
-                  <label htmlFor="workHours" className="block text-sm font-medium text-gray-700">Work Hours</label>
-                  <input
-                    type="text"
-                    name="workHours"
-                    id="workHours"
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    defaultValue={editData.workHours}
-                    onChange={(e) => setEditData({ ...editData, workHours: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="mt-2">
-                  <label htmlFor="numberofLabours" className="block text-sm font-medium text-gray-700">Number of Labours</label>
-                  <input
-                    type="text"
-                    name="numberofLabours"
-                    id="numberofLabours"
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    defaultValue={editData.numberofLabours}
-                    onChange={(e) => setEditData({ ...editData, numberofLabours: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="mt-2">
-                  <label htmlFor="rate" className="block text-sm font-medium text-gray-700">Rate</label>
-                  <input
-                    type="text"
-                    name="rate"
-                    id="rate"
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    defaultValue={editData.rate}
-                    onChange={(e) => setEditData({ ...editData, rate: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="mt-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                  <input
-                    type="text"
-                    name="description"
-                    id="description"
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    defaultValue={editData.description}
-                    onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="mt-2">
-                  <label htmlFor="dailyCharge" className="block text-sm font-medium text-gray-700">Daily Charge</label>
-                  <input
-                    type="text"
-                    name="dailyCharge"
-                    id="dailyCharge"
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    defaultValue={editData.dailyCharge}
-                    onChange={(e) => setEditData({ ...editData, dailyCharge: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="mt-4 flex justify-between">
-                  <button
-                    type="submit"
-                    className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleEditCancel}
-                    className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm ml-4"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
     </div>
   );
 };

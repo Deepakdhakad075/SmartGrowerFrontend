@@ -6,6 +6,7 @@ import { AiOutlineDelete } from "react-icons/ai";
 import ReactPaginate from 'react-paginate';
 import { getLabours, addLabour, deleteLabour } from '../api';
 import { useNavigate } from "react-router-dom";
+import AnimatedDots from '../components/Loader';
 
 const Dashboard = () => {
   const [labours, setLabours] = useState([]);
@@ -18,22 +19,39 @@ const Dashboard = () => {
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
+  const [loader, setLoader] = useState(false);
+  const [totalAmount, setTotalAmount] = useState(0);
 
   useEffect(() => {
     const fetchLabours = async () => {
-      const data = await getLabours(token);
-      setLabours(data);
-      setFilteredLabours(data);
+      setLoader(true);
+      try {
+        const data = await getLabours(token);
+        console.log(data, "all Labour data obj");
+        setLabours(data.labours || []);
+        setTotalAmount(data.totalDueAmountAllLabours);
+        console.log(totalAmount, "totallllll");
+        setFilteredLabours(data.labours || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoader(false);
+      }
     };
     fetchLabours();
   }, [token]);
 
   useEffect(() => {
-    setFilteredLabours(
-      labours.filter(labour =>
-        labour.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    );
+    setLoader(true);
+    const timeoutId = setTimeout(() => {
+      setFilteredLabours(
+        labours.filter(labour =>
+          labour.name && labour.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      );
+      setLoader(false);
+    }, 300); // Debounce search filter
+    return () => clearTimeout(timeoutId);
   }, [searchQuery, labours]);
 
   const addLabourHandler = async (e) => {
@@ -74,8 +92,8 @@ const Dashboard = () => {
     let totaldays = 0;
 
     dailyReports.forEach(report => {
-      if(report.numberofLabours){
-          totaldays += report.numberofLabours;
+      if (report.numberofLabours) {
+        totaldays += report.numberofLabours;
       }
       totalWorkHours += report.workHours || 0;
       totalCharge += report.dailyCharge || 0;
@@ -102,7 +120,6 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto p-4 bg-stone-100">
-      
       <form className="mb-4 mt-6" onSubmit={addLabourHandler}>
         <div className="flex space-x-4">
           <input
@@ -124,130 +141,119 @@ const Dashboard = () => {
       </form>
 
       <div className='flex w-full gap-3'>
-      <div className="mb-4 w-full">
-        <input
-          className="border border-[#DCB579] rounded-md p-2 w-full"
-          type="text"
-          placeholder="Search by name"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-    
+        <div className="mb-4 w-full">
+          <input
+            className="border border-[#DCB579] rounded-md p-2 w-full"
+            type="text"
+            placeholder="Search by name"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto shadow-sm rounded-sm mb-4">
-        <table className="min-w-full bg-white shadow-lg rounded-lg overflow-hidden">
-          <thead>
-            <tr className="bg-[#f9f5ef]">
-              <th className="py-4 px-4 border-b border-gray-300">Name</th>
-              <th className="py-4 px-4 border border-gray-200 ">Total Amount</th>
-              <th className="py-4 px-4 border-b border-gray-300">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayLabours.map((labour) => {
-              const { totalCharge } = calculateTotals(labour.dailyReports);
-
-              return (
-                <tr key={labour._id} className="bg-white mt-2 text-sm mb-4 shadow-md rounded-md hover:bg-gray-50 transition-all duration-300" onDoubleClick={() => viewDetailsHandler(labour._id)}>
-                  <td className="py-4 px-4 text-center uppercase">{labour.name}</td>
-                  <td className="py-4 px-4 text-center bg-[#fef4f4]">{totalCharge} Rs</td>
-                  <td className="py-4 px-4 text-center flex items-center justify-center gap-4">
-                    <button
-                      className="text-green-500"
-                      onClick={() => addDailyReportHandler(labour._id)}
-                    >
-                      <CgAddR size={24} />
-                    </button>
-                    <button
-                      className="text-blue-400"
-                      onClick={() => viewDetailsHandler(labour._id)}
-                    >
-                      <ImAddressBook size={24} />
-                    </button>
-                    <button
-                      className="text-red-500"
-                      onClick={() => toggleModal(labour._id)}
-                    >
-                      <AiOutlineDelete size={24} />
-                    </button>
-                  </td>
+        {
+          loader ? (
+            <div>
+              <AnimatedDots />
+            </div>
+          ) : (
+            <table className="min-w-full bg-white shadow-lg rounded-lg overflow-hidden">
+              <thead>
+                <tr className="bg-[#f9f5ef]">
+                  <th className="py-4 px-4 border-b border-gray-300">Name</th>
+                  <th className="py-4 px-4 border border-gray-200 ">Total Amount</th>
+                  <th className="py-4 px-4 border-b border-gray-300">Actions</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {displayLabours && displayLabours.map((labour) => {
+                  // const { totalCharge } = calculateTotals(labour.dailyReports);
+
+                  return (
+                    <tr key={labour._id} className="bg-white mt-2 text-sm mb-4 shadow-md rounded-md hover:bg-gray-50 transition-all duration-300" onDoubleClick={() => viewDetailsHandler(labour._id)}>
+                      <td className="py-4 px-4 text-center uppercase">{labour.name}</td>
+                      <td className="py-4 px-4 text-center bg-[#fef4f4]">{labour.totalDueAmount} Rs</td>
+                      <td className="py-4 px-4 text-center flex items-center justify-center gap-4">
+                        <button
+                          className="text-green-500"
+                          onClick={() => addDailyReportHandler(labour._id)}
+                        >
+                          <CgAddR size={24} />
+                        </button>
+                        <button
+                          className="text-blue-400"
+                          onClick={() => viewDetailsHandler(labour._id)}
+                        >
+                          <ImAddressBook size={24} />
+                        </button>
+                        <button
+                          className="text-red-500"
+                          onClick={() => toggleModal(labour._id)}
+                        >
+                          <AiOutlineDelete size={24} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        }
       </div>
       <div className="flex flex-col md:flex-row sm:flex-col justify-center items-center gap-5 mt-4">
+        {filteredLabours.length > 5 && (
+          <div className="flex justify-end w-full max-w-xs md:max-w-md">
+            <ReactPaginate
+              previousLabel={<button className="bg-gray-200 text-black py-2 px-4 rounded-md hover:bg-gray-300">Previous</button>}
+              nextLabel={<button className="bg-gray-200 text-black py-2 px-4 rounded-md hover:bg-gray-300">Next</button>}
+              breakLabel={'...'}
+              breakClassName={'break-me'}
+              pageCount={Math.ceil(filteredLabours.length / laboursPerPage)}
+              marginPagesDisplayed={2}
+              pageRangeDisplayed={5}
+              onPageChange={handlePageClick}
+              containerClassName={'pagination flex space-x-2 justify-center'}
+              activeClassName={'active'}
+              pageClassName={'page-item'}
+              pageLinkClassName={'page-link'}
+              previousClassName={'page-item'}
+              previousLinkClassName={'page-link'}
+              nextClassName={'page-item'}
+              nextLinkClassName={'page-link'}
+              breakLinkClassName={'page-link'}
+            />
+          </div>
+        )}
+        <div className="p-4 mt-4 bg-[#fef4f4] shadow-md text-xl text-black font-bold rounded-md w-full md:w-fit text-center">
+          Total Amount: <span className="text-gray-600">{totalAmount} Rs</span>
+        </div>
+      </div>
 
-  {filteredLabours.length > 10 && (
-    <div className="flex justify-end w-full max-w-xs md:max-w-md">
-      <ReactPaginate
-        previousLabel={<button className="bg-gray-200 text-black py-2 px-4 rounded-md hover:bg-gray-300">Previous</button>}
-        nextLabel={<button className="bg-gray-200 text-black py-2 px-4 rounded-md hover:bg-gray-300">Next</button>}
-        breakLabel={'...'}
-        breakClassName={'break-me'}
-        pageCount={Math.ceil(filteredLabours.length / laboursPerPage)}
-        marginPagesDisplayed={2}
-        pageRangeDisplayed={5}
-        onPageChange={handlePageClick}
-        containerClassName={'pagination flex space-x-2 justify-center'}
-        activeClassName={'active'}
-        pageClassName={'page-item'}
-        pageLinkClassName={'page-link'}
-        previousClassName={'page-item'}
-        previousLinkClassName={'page-link'}
-        nextClassName={'page-item'}
-        nextLinkClassName={'page-link'}
-        breakLinkClassName={'page-link'}
-      />
-      
-    </div>
-    
-  )}
-    <div className="p-1 bg-white shadow-md rounded-md  w-full h-9 text-center flex items-center justify-center">
-    <h3 className="sm:text-[14px] text-[14px] md:text-xl text-red-500 font-semibold text-center md:text-left">
-      Total Amount Paid to All Labours: {calculateTotalAmount()} Rs
-    </h3>
-  </div>
-</div>
-    { 
-      openModal &&
-        <div id="popup-modal" className="fixed inset-0 z-50 flex items-center justify-center w-full h-full bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow dark:bg-gray-700 relative p-4 w-full max-w-md">
-            <button
-              type="button"
-              className="absolute top-3 right-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex items-center justify-center dark:hover:bg-gray-600 dark:hover:text-white"
-              onClick={() => toggleModal(null)}
-            >
-              <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 1l6 6m0 0l6 6M7 7l-6 6m6-6l6-6"/>
-              </svg>
-            </button>
-            <div className="p-6 text-center">
-              <svg className="mx-auto mb-4 text-gray-400 w-12 h-12 dark:text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 11V6m0 8h.01M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">Are you sure you want to delete this labour?</h3>
+      {openModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-8 rounded-md shadow-md">
+            <h2 className="text-lg font-semibold mb-4">Confirm Deletion</h2>
+            <p>Are you sure you want to delete this labour?</p>
+            <div className="flex justify-end mt-4">
               <button
+                className="bg-red-500 text-white py-2 px-4 rounded mr-2"
                 onClick={deleteLabourHandler}
-                type="button"
-                className="text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center"
               >
-                Yes, I'm sure
+                Delete
               </button>
               <button
-                type="button"
-                className="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700"
-                onClick={() => toggleModal(null)}
+                className="bg-gray-300 py-2 px-4 rounded"
+                onClick={() => toggleModal()}
               >
-                No, cancel
+                Cancel
               </button>
             </div>
           </div>
         </div>
-      }
+      )}
     </div>
   );
 };

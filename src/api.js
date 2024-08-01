@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+
+
 const API_URL = process.env.REACT_APP_API_URL;
 console.log(API_URL,"apiiii");
 
@@ -30,7 +32,7 @@ export const addLabour = async (labourData, token) => {
         Authorization: `Bearer ${token}`,
       },
     };
-    const response = await axios.post(`${API_URL}/labours`, labourData, config);
+    const response = await axios.post(`${API_URL}/labours/`, labourData, config);
     return response.data;
   } catch (error) {
     console.error('Error adding labour:', error.response ? error.response.data : error.message);
@@ -98,9 +100,14 @@ export const getLabour = async (id, token) => {
   };
 
   export const createReceipt = async (token, labourId, receipt) => {
-    const response = await axios.post(`${API_URL}/labours/labours/${labourId}/receipts`, receipt, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await axios.post(
+      `${process.env.REACT_APP_API_URL}/labours/labours/${labourId}/receipts`, 
+      receipt, 
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    
     return response.data;
   };
 
@@ -123,7 +130,7 @@ export const getLabour = async (id, token) => {
     }
   }
 };
-export const deleteDailyReport = async (labourId, reportId, token) => {
+ export const deleteDailyReport = async (labourId, reportId, token) => {
     const response = await fetch(`${API_URL}/labours/${labourId}/dailyReports/${reportId}`, {
       method: 'DELETE',
       headers: {
@@ -151,5 +158,23 @@ export const deleteDailyReport = async (labourId, reportId, token) => {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to edit daily report');
+    }
+  };
+
+  export const addDeposite = async (token, id, totalPaid, date) => { // Changed function name
+    const response = await axios.post(
+      `${process.env.REACT_APP_API_URL}/labours/labours/${id}/paid`,
+      { totalPaid, date },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (response.status !== 200) {
+      const error = response.data;
+      throw new Error(error.message || 'Failed to add Deposit');
     }
   };
