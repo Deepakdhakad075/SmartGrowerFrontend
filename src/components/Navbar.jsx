@@ -10,6 +10,8 @@ export const Navbar = () => {
   const [openModal, setOpenModal] = useState(false);
   const [showLogoutButton, setShowLogoutButton] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+   const token1 = localStorage.getItem('token');
+
 
   const handleLogOut = () => {
     localStorage.clear();
@@ -39,9 +41,9 @@ export const Navbar = () => {
   return (
     <nav className="bg-gradient-to-r from-gray-800 to-gray-600 p-4 flex z-40 fixed w-full justify-between items-center px-4">
       <div className="text-white text-xl font-bold z-40 opacity-100 flex flex-col items-center relative">
-        <NavLink to={"/home"}>
-          <img src={logo} width={50} alt="Logo" className='rounded-md z-40 brightness-110 shadow-lg' />
-        </NavLink>
+      <NavLink to={token1 ? "/home" : "/"}>
+  <img src={logo} width={50} alt="Logo" className='rounded-md z-40 brightness-110 shadow-lg' />
+      </NavLink>
       </div>
 
       {showLogoutButton && (

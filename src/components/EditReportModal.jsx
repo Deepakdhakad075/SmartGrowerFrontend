@@ -1,8 +1,17 @@
-// src/components/EditReportModal.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const EditReportModal = ({ reportData, onSave, onCancel }) => {
-  const [formData, setFormData] = useState(reportData);
+  const [formData, setFormData] = useState({
+    ...reportData,
+    date: reportData.date || new Date().toISOString().split('T')[0]  // Provide a default date if undefined
+  });
+
+  useEffect(() => {
+    setFormData({
+      ...reportData,
+      date: reportData.date || new Date().toISOString().split('T')[0]  // Update formData when reportData changes
+    });
+  }, [reportData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
