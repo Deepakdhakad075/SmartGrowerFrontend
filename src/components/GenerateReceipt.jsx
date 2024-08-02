@@ -28,7 +28,8 @@ export const GenerateReceipt = ({ token }) => {
 const handleSubmit = async (event) => {
   event.preventDefault();
   if (!labour) return;
-
+  let final = due-totalPay;
+   setDue(final);
   const receipt = {
     labourName: labour.name,
     numberofLabours,

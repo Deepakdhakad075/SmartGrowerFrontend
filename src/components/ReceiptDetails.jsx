@@ -11,11 +11,18 @@ const ReceiptDetails = ({ token }) => {
   useEffect(() => {
     const fetchReceipt = async () => {
       try {
-        const labour = await getLabour(labourId, token);
+        const response = await getLabour(labourId, token);
+        const labour = response.data.labour;
+        if (!labour || !labour.receipts) {
+          throw new Error('Labour data or receipts not found');
+        }
         const foundReceipt = labour.receipts.find(rec => rec._id === receiptId);
+        if (!foundReceipt) {
+          throw new Error('Receipt not found');
+        }
         setReceipt(foundReceipt);
       } catch (error) {
-        console.error('Failed to fetch receipt details:', error);
+        console.error('Failed to fetch receipt details:', error.message);
       }
     };
 
@@ -87,7 +94,7 @@ const ReceiptDetails = ({ token }) => {
             className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             onClick={printPDF}
           >
-             Download PDF
+            Download PDF
           </button>
         </div>
       </div>
